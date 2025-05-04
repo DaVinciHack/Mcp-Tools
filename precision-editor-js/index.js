@@ -213,9 +213,9 @@ function calculateSimilarity(a, b) {
 /**
  * Handle read file requests
  */
-async function readFile(params) {
+async function readFile(filePath) {
   try {
-    const { filePath } = params;
+    console.error(`Reading file: ${filePath}`);
     
     if (!filePath) {
       throw new Error('Missing required parameter: filePath');
@@ -248,9 +248,9 @@ async function readFile(params) {
 /**
  * Handle write file requests
  */
-async function writeFile(params) {
+async function writeFile(filePath, content, createBackupFile = true) {
   try {
-    const { filePath, content, createBackupFile = true } = params;
+    console.error(`Writing to file: ${filePath}`);
     
     if (!filePath) {
       throw new Error('Missing required parameter: filePath');
@@ -305,16 +305,9 @@ async function writeFile(params) {
 /**
  * Handle code editing requests
  */
-async function editCode(params) {
+async function editCode(filePath, oldString, newString, createBackupFile = true, expectedReplacements = 1, formatCode = false) {
   try {
-    const { 
-      filePath, 
-      oldString, 
-      newString, 
-      createBackupFile = true,
-      expectedReplacements = 1,
-      formatCode = false
-    } = params;
+    console.error(`Editing code in file: ${filePath}`);
     
     if (!filePath || !oldString || newString === undefined) {
       throw new Error('Missing required parameters: filePath, oldString, or newString');
@@ -415,42 +408,60 @@ async function getStatus() {
 }
 
 // MCP Server handler function
-async function execute(method, params) {
-  console.error(`Executing method: ${method}`);
-  
-  switch (method) {
-    case 'readFile':
-      return await readFile(params);
-    case 'writeFile':
-      return await writeFile(params);
-    case 'editCode':
-      return await editCode(params);
-    case 'status':
-      return await getStatus();
-    default:
-      throw new Error(`Unknown method: ${method}`);
+async function mcp(req) {
+  console.error('MCP request received:', req);
+
+  if (!req || !req.name) {
+    console.error('Invalid MCP request format:', req);
+    throw new Error('Invalid request format');
+  }
+
+  try {
+    // Extract parameters based on the function name
+    let result;
+    
+    switch (req.name) {
+      case 'readFile':
+        result = await readFile(req.parameters?.filePath);
+        break;
+        
+      case 'writeFile':
+        result = await writeFile(
+          req.parameters?.filePath,
+          req.parameters?.content,
+          req.parameters?.createBackupFile
+        );
+        break;
+        
+      case 'editCode':
+        result = await editCode(
+          req.parameters?.filePath,
+          req.parameters?.oldString,
+          req.parameters?.newString,
+          req.parameters?.createBackupFile,
+          req.parameters?.expectedReplacements,
+          req.parameters?.formatCode
+        );
+        break;
+        
+      case 'status':
+        result = await getStatus();
+        break;
+        
+      default:
+        throw new Error(`Unknown function: ${req.name}`);
+    }
+    
+    console.error('MCP result:', result);
+    return result;
+  } catch (error) {
+    console.error('Error in MCP handler:', error);
+    throw error;
   }
 }
 
-// MCP Handler
-module.exports = async function handler(req, res) {
-  console.error('Received request:', JSON.stringify(req.body, null, 2));
-  
-  const { method, params } = req.body;
-  
-  try {
-    const result = await execute(method, params);
-    res.json({ success: true, result });
-  } catch (error) {
-    console.error('Error handling request:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message || 'Unknown error'
-    });
-  }
-};
-
-// Export functions for direct testing
+// Export MCP handler and individual functions
+module.exports = mcp;
 module.exports.readFile = readFile;
 module.exports.writeFile = writeFile;
 module.exports.editCode = editCode;

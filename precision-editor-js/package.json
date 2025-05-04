@@ -18,10 +18,14 @@
     "fs-extra": "^11.1.0",
     "prettier": "^2.8.3"
   },
+  "engines": {
+    "node": ">=16.0.0"
+  },
   "mcp": {
     "name": "Precision Code Editor",
     "description": "Make targeted edits to files without rewriting entire code",
-    "tools": [
+    "version": "1.0.0",
+    "functions": [
       {
         "name": "readFile",
         "description": "Read a file with path validation",
