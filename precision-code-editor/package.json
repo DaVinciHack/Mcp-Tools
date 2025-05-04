@@ -1,0 +1,90 @@
+{
+  "name": "precision-code-editor",
+  "version": "1.0.0",
+  "description": "A custom MCP server for making targeted edits to code in Palantir Foundry and React applications",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "test": "jest",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "palantir",
+    "foundry",
+    "code-editor",
+    "mcp-server",
+    "react",
+    "typescript"
+  ],
+  "author": "DaVinciHack",
+  "license": "MIT",
+  "dependencies": {
+    "@types/node": "^18.11.18",
+    "typescript": "^4.9.4",
+    "ts-node": "^10.9.1",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "body-parser": "^1.20.1",
+    "typescript-parser": "^2.6.1",
+    "ast-types": "^0.14.2",
+    "recast": "^0.20.5",
+    "prettier": "^2.8.3",
+    "jscodeshift": "^0.14.0",
+    "@typescript-eslint/parser": "^5.48.2",
+    "@typescript-eslint/eslint-plugin": "^5.48.2",
+    "eslint": "^8.32.0",
+    "fs-extra": "^11.1.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.15",
+    "@types/cors": "^2.8.13",
+    "@types/body-parser": "^1.19.2",
+    "@types/jest": "^29.2.6",
+    "jest": "^29.3.1",
+    "ts-jest": "^29.0.5"
+  },
+  "files": [
+    "dist/**/*"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DaVinciHack/Mcp-Tools.git"
+  },
+  "bugs": {
+    "url": "https://github.com/DaVinciHack/Mcp-Tools/issues"
+  },
+  "homepage": "https://github.com/DaVinciHack/Mcp-Tools",
+  "mcp": {
+    "name": "Precision Code Editor",
+    "description": "A custom MCP server for making targeted edits to code in Palantir Foundry and React applications",
+    "tools": [
+      {
+        "name": "readFile",
+        "description": "Reads a file and optionally analyzes its structure",
+        "path": "/api/readFile",
+        "method": "POST"
+      },
+      {
+        "name": "writeFile",
+        "description": "Writes content to a file, creating a backup of the original",
+        "path": "/api/writeFile",
+        "method": "POST"
+      },
+      {
+        "name": "editCode",
+        "description": "Makes targeted edits to specific sections of code",
+        "path": "/api/editCode",
+        "method": "POST"
+      },
+      {
+        "name": "analyze",
+        "description": "Analyzes code structure and provides suggestions",
+        "path": "/api/analyze",
+        "method": "POST"
+      }
+    ]
+  }
+}
