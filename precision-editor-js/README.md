@@ -1,6 +1,6 @@
 # Precision Editor JS
 
-A simplified JavaScript MCP server for making targeted edits to code in Palantir Foundry and React applications.
+A simplified MCP server for making targeted edits to code in Palantir Foundry and React applications without rewriting entire files.
 
 ## Features
 
@@ -12,81 +12,72 @@ A simplified JavaScript MCP server for making targeted edits to code in Palantir
 
 ## Installation
 
-1. Clone this repository
-2. Install dependencies:
+1. Install the MCP server:
 ```bash
-cd precision-editor-js
-npm install
+npm i -g @anthropic-ai/cli
+npx @anthropic-ai/cli mcp install /Users/duncanburbury/mcp-servers/Mcp-Tools/precision-editor-js
 ```
 
-3. Start the server:
-```bash
-npm start
-```
+2. Restart Claude or any MCP-compatible application to detect the new tool
 
-## API Endpoints
+## Usage
 
-### Read File
+Once installed, you can use the Precision Editor JS through Claude or other MCP-compatible assistants. Here are some example prompts:
 
-```
-POST /api/readFile
-```
-
-Request body:
-```json
-{
-  "filePath": "/path/to/file.ts"
-}
-```
-
-### Write File
+### Reading a File
 
 ```
-POST /api/writeFile
+Claude, please use the precision-editor-js to read this file: /path/to/file.js
 ```
 
-Request body:
-```json
-{
-  "filePath": "/path/to/file.ts",
-  "content": "// New file content...",
-  "createBackupFile": true
-}
-```
-
-### Edit Code
+### Writing a File
 
 ```
-POST /api/editCode
+Claude, please use the precision-editor-js to write this content to /path/to/file.js:
+
+const greeting = "Hello, world!";
+console.log(greeting);
 ```
 
-Request body:
-```json
-{
-  "filePath": "/path/to/file.ts",
-  "oldString": "function oldName() {",
-  "newString": "function newName() {",
-  "expectedReplacements": 1,
-  "createBackupFile": true,
-  "formatCode": true
-}
+### Editing Code
+
+```
+Claude, please use the precision-editor-js to replace "function calculateDistance()" with "function computeDistance()" in /path/to/file.js
 ```
 
-## Configuration
+### Complex Edits
+
+```
+Claude, please use the precision-editor-js to make the following edit:
+
+File: /path/to/component.jsx
+Old code: 
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+New code:
+  const [state, setState] = useState({
+    isLoading: false,
+    error: null
+  });
+```
+
+## Allowed Directories
 
 By default, the server allows access to these directories:
 - `/Users/duncanburbury/projects`
 - `/Users/duncanburbury/mcp-servers`
+- `/Users/duncanburbury/Fast-Planner-Clean`
 
-You can modify these in the `config` object at the top of `index.js`.
+## Why Use Precision Editing?
 
-## Usage with Claude
+Making targeted edits instead of rewriting entire files provides several benefits:
 
-Once installed, Claude can use this server to make targeted edits to your code. Examples:
-
-- "Read this file and tell me about its structure"
-- "Make a targeted edit to replace all instances of function X with function Y"
-- "Write this content to a new file"
+1. **Reduced Risk**: Only changes what needs to be changed, minimizing the risk of introducing bugs
+2. **Better Diffs**: Generates cleaner diffs for code reviews
+3. **Preserves Context**: Maintains surrounding code and comments
+4. **Automatic Backups**: Creates backups before making changes
+5. **Works with Large Files**: Efficiently handles large files by only modifying necessary parts
 
 ## License
 

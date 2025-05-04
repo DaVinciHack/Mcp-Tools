@@ -1,12 +1,9 @@
 /**
- * Precision Code Editor MCP Server (JavaScript Version)
+ * Precision Code Editor MCP Server
  * 
- * A simplified MCP server for making targeted edits to code
+ * A simplified MCP server for making targeted edits to code without rewriting entire files
  */
 
-const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
 const fs = require('fs-extra');
 const path = require('path');
 const prettier = require('prettier');
@@ -15,9 +12,9 @@ const prettier = require('prettier');
 const config = {
   allowedDirectories: [
     '/Users/duncanburbury/projects',
-    '/Users/duncanburbury/mcp-servers'
+    '/Users/duncanburbury/mcp-servers',
+    '/Users/duncanburbury/Fast-Planner-Clean'
   ],
-  defaultShell: process.platform === 'win32' ? 'powershell.exe' : '/bin/bash',
   blockedCommands: [
     'rm -rf /',
     'deltree',
@@ -25,14 +22,6 @@ const config = {
     '> /dev/sda'
   ]
 };
-
-// Create Express app
-const app = express();
-
-// Middleware
-app.use(cors());
-app.use(bodyParser.json({ limit: '50mb' }));
-app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 
 /**
  * Function to check if a path is within allowed directories
@@ -221,17 +210,15 @@ function calculateSimilarity(a, b) {
   return matches / Math.max(a.length, b.length);
 }
 
-// API Routes
-app.post('/api/readFile', async (req, res) => {
+/**
+ * Handle read file requests
+ */
+async function readFile(params) {
   try {
-    const { filePath } = req.body;
+    const { filePath } = params;
     
     if (!filePath) {
-      res.status(400).json({
-        success: false,
-        error: 'Missing required parameter: filePath'
-      });
-      return;
+      throw new Error('Missing required parameter: filePath');
     }
     
     // Read file content
@@ -241,7 +228,7 @@ app.post('/api/readFile', async (req, res) => {
     const fileInfo = await fs.stat(filePath);
     
     // Prepare response
-    const response = {
+    return {
       success: true,
       filePath,
       content: fileContent,
@@ -252,35 +239,25 @@ app.post('/api/readFile', async (req, res) => {
         extension: path.extname(filePath).toLowerCase()
       }
     };
-    
-    res.status(200).json(response);
   } catch (error) {
     console.error('Error reading file:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    throw error;
   }
-});
+}
 
-app.post('/api/writeFile', async (req, res) => {
+/**
+ * Handle write file requests
+ */
+async function writeFile(params) {
   try {
-    const { filePath, content, createBackupFile = true } = req.body;
+    const { filePath, content, createBackupFile = true } = params;
     
     if (!filePath) {
-      res.status(400).json({
-        success: false,
-        error: 'Missing required parameter: filePath'
-      });
-      return;
+      throw new Error('Missing required parameter: filePath');
     }
     
     if (content === undefined) {
-      res.status(400).json({
-        success: false,
-        error: 'Missing required parameter: content'
-      });
-      return;
+      throw new Error('Missing required parameter: content');
     }
     
     let originalContent = '';
@@ -311,7 +288,7 @@ app.post('/api/writeFile', async (req, res) => {
     }
     
     // Prepare response
-    const response = {
+    return {
       success: true,
       filePath,
       backupPath: backupPath || null,
@@ -319,18 +296,16 @@ app.post('/api/writeFile', async (req, res) => {
       changesCount: diff ? diff.changes : content.length,
       diff: diff ? diff.diff : null,
     };
-    
-    res.status(200).json(response);
   } catch (error) {
     console.error('Error writing file:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    throw error;
   }
-});
+}
 
-app.post('/api/editCode', async (req, res) => {
+/**
+ * Handle code editing requests
+ */
+async function editCode(params) {
   try {
     const { 
       filePath, 
@@ -339,14 +314,10 @@ app.post('/api/editCode', async (req, res) => {
       createBackupFile = true,
       expectedReplacements = 1,
       formatCode = false
-    } = req.body;
+    } = params;
     
     if (!filePath || !oldString || newString === undefined) {
-      res.status(400).json({
-        success: false,
-        error: 'Missing required parameters: filePath, oldString, or newString'
-      });
-      return;
+      throw new Error('Missing required parameters: filePath, oldString, or newString');
     }
     
     // Read original file content
@@ -371,24 +342,20 @@ app.post('/api/editCode', async (req, res) => {
       // No matches found - try to find closest match for better error message
       const closestMatch = findClosestMatch(fileContent, oldString);
       
-      res.status(400).json({
-        success: false,
+      throw new Error(JSON.stringify({
         error: 'No matches found for the specified old string',
         suggestion: closestMatch ? {
           diff: closestMatch.diff,
           changesCount: closestMatch.changes
         } : null
-      });
-      return;
+      }));
     }
     
     if (replacementCount !== expectedReplacements) {
-      res.status(400).json({
-        success: false,
+      throw new Error(JSON.stringify({
         error: `Found ${replacementCount} occurrences of the specified string, but expected ${expectedReplacements}`,
         actualReplacements: replacementCount
-      });
-      return;
+      }));
     }
     
     // Perform the replacement
@@ -421,7 +388,7 @@ app.post('/api/editCode', async (req, res) => {
     const diff = characterDiff(oldString, newString);
     
     // Prepare response
-    const response = {
+    return {
       success: true,
       filePath,
       backupPath: backupPath || null,
@@ -430,59 +397,61 @@ app.post('/api/editCode', async (req, res) => {
       diff: diff.diff,
       formatted: formatCode
     };
-    
-    res.status(200).json(response);
   } catch (error) {
     console.error('Error editing code:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    throw error;
   }
-});
+}
 
-// Status endpoint
-app.get('/api/status', (req, res) => {
-  res.json({
+/**
+ * Handle status requests
+ */
+async function getStatus() {
+  return {
     status: 'running',
     version: '1.0.0',
     config
-  });
-});
+  };
+}
 
 // MCP Server handler function
-async function handler(req, res) {
-  return new Promise((resolve, reject) => {
-    app(req, res, (err) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(undefined);
-      }
+async function execute(method, params) {
+  console.error(`Executing method: ${method}`);
+  
+  switch (method) {
+    case 'readFile':
+      return await readFile(params);
+    case 'writeFile':
+      return await writeFile(params);
+    case 'editCode':
+      return await editCode(params);
+    case 'status':
+      return await getStatus();
+    default:
+      throw new Error(`Unknown method: ${method}`);
+  }
+}
+
+// MCP Handler
+module.exports = async function handler(req, res) {
+  console.error('Received request:', JSON.stringify(req.body, null, 2));
+  
+  const { method, params } = req.body;
+  
+  try {
+    const result = await execute(method, params);
+    res.json({ success: true, result });
+  } catch (error) {
+    console.error('Error handling request:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || 'Unknown error'
     });
-  });
-}
+  }
+};
 
-// If run directly (not as MCP server)
-if (require.main === module) {
-  const PORT = process.env.PORT || 3001;
-  
-  // Start the server
-  app.listen(PORT, () => {
-    console.log(`Precision Code Editor MCP Server running on port ${PORT}`);
-    console.log(`Configuration loaded: ${config.allowedDirectories.length} directories allowed`);
-  });
-  
-  // Handle graceful shutdown
-  process.on('SIGTERM', () => {
-    console.log('SIGTERM signal received: shutting down server');
-    process.exit(0);
-  });
-  
-  process.on('SIGINT', () => {
-    console.log('SIGINT signal received: shutting down server');
-    process.exit(0);
-  });
-}
-
-module.exports = { handler };
+// Export functions for direct testing
+module.exports.readFile = readFile;
+module.exports.writeFile = writeFile;
+module.exports.editCode = editCode;
+module.exports.getStatus = getStatus;

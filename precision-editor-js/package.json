@@ -1,7 +1,7 @@
 {
   "name": "precision-editor-js",
   "version": "1.0.0",
-  "description": "A simplified JavaScript MCP server for making targeted edits to code",
+  "description": "A simplified MCP server for making targeted edits to code without rewriting entire files",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -15,10 +15,95 @@
   "author": "DaVinciHack",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.18.2",
-    "body-parser": "^1.20.1",
-    "cors": "^2.8.5",
     "fs-extra": "^11.1.0",
     "prettier": "^2.8.3"
+  },
+  "mcp": {
+    "name": "Precision Code Editor",
+    "description": "Make targeted edits to files without rewriting entire code",
+    "tools": [
+      {
+        "name": "readFile",
+        "description": "Read a file with path validation",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "filePath": {
+              "type": "string",
+              "description": "Path to the file to read"
+            }
+          },
+          "required": ["filePath"]
+        }
+      },
+      {
+        "name": "writeFile",
+        "description": "Write content to a file with automatic backup",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "filePath": {
+              "type": "string",
+              "description": "Path to the file to write"
+            },
+            "content": {
+              "type": "string",
+              "description": "Content to write to the file"
+            },
+            "createBackupFile": {
+              "type": "boolean",
+              "description": "Whether to create a backup of the file before writing",
+              "default": true
+            }
+          },
+          "required": ["filePath", "content"]
+        }
+      },
+      {
+        "name": "editCode",
+        "description": "Make targeted edits to specific sections of code",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "filePath": {
+              "type": "string",
+              "description": "Path to the file to edit"
+            },
+            "oldString": {
+              "type": "string",
+              "description": "String to replace"
+            },
+            "newString": {
+              "type": "string",
+              "description": "Replacement string"
+            },
+            "expectedReplacements": {
+              "type": "number",
+              "description": "Expected number of replacements (defaults to 1)",
+              "default": 1
+            },
+            "createBackupFile": {
+              "type": "boolean",
+              "description": "Whether to create a backup of the file before editing",
+              "default": true
+            },
+            "formatCode": {
+              "type": "boolean",
+              "description": "Whether to format the code after editing",
+              "default": false
+            }
+          },
+          "required": ["filePath", "oldString", "newString"]
+        }
+      },
+      {
+        "name": "status",
+        "description": "Get the status of the Precision Code Editor",
+        "parameters": {
+          "type": "object",
+          "properties": {}
+        }
+      }
+    ]
   }
 }
