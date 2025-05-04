@@ -211,195 +211,180 @@ function calculateSimilarity(a, b) {
 }
 
 /**
- * Handle read file requests
+ * Read a file implementation
  */
 async function readFile(filePath) {
-  try {
-    console.error(`Reading file: ${filePath}`);
-    
-    if (!filePath) {
-      throw new Error('Missing required parameter: filePath');
-    }
-    
-    // Read file content
-    const fileContent = await safeReadFile(filePath);
-    
-    // Get file metadata
-    const fileInfo = await fs.stat(filePath);
-    
-    // Prepare response
-    return {
-      success: true,
-      filePath,
-      content: fileContent,
-      info: {
-        size: fileInfo.size,
-        modified: fileInfo.mtime.toISOString(),
-        created: fileInfo.birthtime.toISOString(),
-        extension: path.extname(filePath).toLowerCase()
-      }
-    };
-  } catch (error) {
-    console.error('Error reading file:', error);
-    throw error;
+  console.error(`Reading file: ${filePath}`);
+  
+  if (!filePath) {
+    throw new Error('Missing required parameter: filePath');
   }
+  
+  // Read file content
+  const fileContent = await safeReadFile(filePath);
+  
+  // Get file metadata
+  const fileInfo = await fs.stat(filePath);
+  
+  // Prepare response
+  return {
+    success: true,
+    filePath,
+    content: fileContent,
+    info: {
+      size: fileInfo.size,
+      modified: fileInfo.mtime.toISOString(),
+      created: fileInfo.birthtime.toISOString(),
+      extension: path.extname(filePath).toLowerCase()
+    }
+  };
 }
 
 /**
- * Handle write file requests
+ * Write to a file implementation
  */
 async function writeFile(filePath, content, createBackupFile = true) {
-  try {
-    console.error(`Writing to file: ${filePath}`);
-    
-    if (!filePath) {
-      throw new Error('Missing required parameter: filePath');
-    }
-    
-    if (content === undefined) {
-      throw new Error('Missing required parameter: content');
-    }
-    
-    let originalContent = '';
-    let backupPath = '';
-    let fileExisted = false;
-    
-    // Check if file exists
-    fileExisted = await fileExists(filePath);
-    
-    // If file exists, create backup
-    if (fileExisted && createBackupFile) {
-      try {
-        originalContent = await safeReadFile(filePath);
-        backupPath = await createBackup(filePath);
-      } catch (backupError) {
-        console.error('Error creating backup:', backupError);
-        // Continue without backup
-      }
-    }
-    
-    // Write file content
-    await safeWriteFile(filePath, content);
-    
-    // Calculate diff if original content exists
-    let diff = null;
-    if (fileExisted && originalContent) {
-      diff = characterDiff(originalContent, content);
-    }
-    
-    // Prepare response
-    return {
-      success: true,
-      filePath,
-      backupPath: backupPath || null,
-      newFile: !fileExisted,
-      changesCount: diff ? diff.changes : content.length,
-      diff: diff ? diff.diff : null,
-    };
-  } catch (error) {
-    console.error('Error writing file:', error);
-    throw error;
+  console.error(`Writing to file: ${filePath}`);
+  
+  if (!filePath) {
+    throw new Error('Missing required parameter: filePath');
   }
+  
+  if (content === undefined) {
+    throw new Error('Missing required parameter: content');
+  }
+  
+  let originalContent = '';
+  let backupPath = '';
+  let fileExisted = false;
+  
+  // Check if file exists
+  fileExisted = await fileExists(filePath);
+  
+  // If file exists, create backup
+  if (fileExisted && createBackupFile) {
+    try {
+      originalContent = await safeReadFile(filePath);
+      backupPath = await createBackup(filePath);
+    } catch (backupError) {
+      console.error('Error creating backup:', backupError);
+      // Continue without backup
+    }
+  }
+  
+  // Write file content
+  await safeWriteFile(filePath, content);
+  
+  // Calculate diff if original content exists
+  let diff = null;
+  if (fileExisted && originalContent) {
+    diff = characterDiff(originalContent, content);
+  }
+  
+  // Prepare response
+  return {
+    success: true,
+    filePath,
+    backupPath: backupPath || null,
+    newFile: !fileExisted,
+    changesCount: diff ? diff.changes : content.length,
+    diff: diff ? diff.diff : null,
+  };
 }
 
 /**
- * Handle code editing requests
+ * Edit code implementation
  */
 async function editCode(filePath, oldString, newString, createBackupFile = true, expectedReplacements = 1, formatCode = false) {
-  try {
-    console.error(`Editing code in file: ${filePath}`);
-    
-    if (!filePath || !oldString || newString === undefined) {
-      throw new Error('Missing required parameters: filePath, oldString, or newString');
-    }
-    
-    // Read original file content
-    let fileContent = await safeReadFile(filePath);
-    const originalContent = fileContent;
-    
-    // Create backup if requested
-    let backupPath = '';
-    if (createBackupFile) {
-      try {
-        backupPath = await createBackup(filePath);
-      } catch (backupError) {
-        console.error('Error creating backup:', backupError);
-        // Continue without backup
-      }
-    }
-    
-    // Perform the replacement
-    const replacementCount = (fileContent.match(new RegExp(escapeRegExp(oldString), 'g')) || []).length;
-    
-    if (replacementCount === 0) {
-      // No matches found - try to find closest match for better error message
-      const closestMatch = findClosestMatch(fileContent, oldString);
-      
-      throw new Error(JSON.stringify({
-        error: 'No matches found for the specified old string',
-        suggestion: closestMatch ? {
-          diff: closestMatch.diff,
-          changesCount: closestMatch.changes
-        } : null
-      }));
-    }
-    
-    if (replacementCount !== expectedReplacements) {
-      throw new Error(JSON.stringify({
-        error: `Found ${replacementCount} occurrences of the specified string, but expected ${expectedReplacements}`,
-        actualReplacements: replacementCount
-      }));
-    }
-    
-    // Perform the replacement
-    fileContent = fileContent.replace(new RegExp(escapeRegExp(oldString), 'g'), newString);
-    
-    // Format code if requested
-    if (formatCode) {
-      try {
-        const extension = filePath.split('.').pop() || '';
-        const parser = getParserForExtension(extension);
-        
-        if (parser) {
-          fileContent = await prettier.format(fileContent, {
-            parser,
-            singleQuote: true,
-            tabWidth: 2,
-            trailingComma: 'es5'
-          });
-        }
-      } catch (formatError) {
-        console.error('Error formatting code:', formatError);
-        // Continue without formatting
-      }
-    }
-    
-    // Write updated content back to file
-    await safeWriteFile(filePath, fileContent);
-    
-    // Calculate diff
-    const diff = characterDiff(oldString, newString);
-    
-    // Prepare response
-    return {
-      success: true,
-      filePath,
-      backupPath: backupPath || null,
-      replacementCount,
-      changesCount: diff.changes,
-      diff: diff.diff,
-      formatted: formatCode
-    };
-  } catch (error) {
-    console.error('Error editing code:', error);
-    throw error;
+  console.error(`Editing code in file: ${filePath}`);
+  
+  if (!filePath || !oldString || newString === undefined) {
+    throw new Error('Missing required parameters: filePath, oldString, or newString');
   }
+  
+  // Read original file content
+  let fileContent = await safeReadFile(filePath);
+  const originalContent = fileContent;
+  
+  // Create backup if requested
+  let backupPath = '';
+  if (createBackupFile) {
+    try {
+      backupPath = await createBackup(filePath);
+    } catch (backupError) {
+      console.error('Error creating backup:', backupError);
+      // Continue without backup
+    }
+  }
+  
+  // Perform the replacement
+  const replacementCount = (fileContent.match(new RegExp(escapeRegExp(oldString), 'g')) || []).length;
+  
+  if (replacementCount === 0) {
+    // No matches found - try to find closest match for better error message
+    const closestMatch = findClosestMatch(fileContent, oldString);
+    
+    throw new Error(JSON.stringify({
+      error: 'No matches found for the specified old string',
+      suggestion: closestMatch ? {
+        diff: closestMatch.diff,
+        changesCount: closestMatch.changes
+      } : null
+    }));
+  }
+  
+  if (replacementCount !== expectedReplacements) {
+    throw new Error(JSON.stringify({
+      error: `Found ${replacementCount} occurrences of the specified string, but expected ${expectedReplacements}`,
+      actualReplacements: replacementCount
+    }));
+  }
+  
+  // Perform the replacement
+  fileContent = fileContent.replace(new RegExp(escapeRegExp(oldString), 'g'), newString);
+  
+  // Format code if requested
+  if (formatCode) {
+    try {
+      const extension = filePath.split('.').pop() || '';
+      const parser = getParserForExtension(extension);
+      
+      if (parser) {
+        fileContent = await prettier.format(fileContent, {
+          parser,
+          singleQuote: true,
+          tabWidth: 2,
+          trailingComma: 'es5'
+        });
+      }
+    } catch (formatError) {
+      console.error('Error formatting code:', formatError);
+      // Continue without formatting
+    }
+  }
+  
+  // Write updated content back to file
+  await safeWriteFile(filePath, fileContent);
+  
+  // Calculate diff
+  const diff = characterDiff(oldString, newString);
+  
+  // Prepare response
+  return {
+    success: true,
+    filePath,
+    backupPath: backupPath || null,
+    replacementCount,
+    changesCount: diff.changes,
+    diff: diff.diff,
+    formatted: formatCode
+  };
 }
 
 /**
- * Handle status requests
+ * Get status implementation
  */
-async function getStatus() {
+function getStatus() {
   return {
     status: 'running',
     version: '1.0.0',
@@ -407,62 +392,129 @@ async function getStatus() {
   };
 }
 
-// MCP Server handler function
-async function mcp(req) {
-  console.error('MCP request received:', req);
-
-  if (!req || !req.name) {
-    console.error('Invalid MCP request format:', req);
-    throw new Error('Invalid request format');
-  }
-
-  try {
-    // Extract parameters based on the function name
-    let result;
+// Main MCP handler
+module.exports = async function(options) {
+  console.error("MCP Server started with options:", JSON.stringify(options, null, 2));
+  
+  // Initialize the server (for MCP protocol)
+  const initialized = { capabilities: {} };
+  
+  // Set up the message handler
+  options.onMessage(async (message) => {
+    console.error("Received message:", JSON.stringify(message, null, 2));
     
-    switch (req.name) {
-      case 'readFile':
-        result = await readFile(req.parameters?.filePath);
-        break;
+    try {
+      // Handle JSON-RPC messages
+      if (message.jsonrpc === "2.0") {
+        // Handle initialization request
+        if (message.method === "initialize") {
+          console.error("Handling initialize request");
+          return {
+            jsonrpc: "2.0",
+            id: message.id,
+            result: initialized
+          };
+        }
         
-      case 'writeFile':
-        result = await writeFile(
-          req.parameters?.filePath,
-          req.parameters?.content,
-          req.parameters?.createBackupFile
-        );
-        break;
-        
-      case 'editCode':
-        result = await editCode(
-          req.parameters?.filePath,
-          req.parameters?.oldString,
-          req.parameters?.newString,
-          req.parameters?.createBackupFile,
-          req.parameters?.expectedReplacements,
-          req.parameters?.formatCode
-        );
-        break;
-        
-      case 'status':
-        result = await getStatus();
-        break;
-        
-      default:
-        throw new Error(`Unknown function: ${req.name}`);
+        // Handle function call request
+        if (message.method === "mcp/execute") {
+          const { name, parameters } = message.params;
+          console.error(`Executing function: ${name} with parameters:`, JSON.stringify(parameters, null, 2));
+          
+          let result;
+          
+          try {
+            switch (name) {
+              case 'readFile':
+                result = await readFile(parameters.filePath);
+                break;
+                
+              case 'writeFile':
+                result = await writeFile(
+                  parameters.filePath,
+                  parameters.content,
+                  parameters.createBackupFile
+                );
+                break;
+                
+              case 'editCode':
+                result = await editCode(
+                  parameters.filePath,
+                  parameters.oldString,
+                  parameters.newString,
+                  parameters.createBackupFile,
+                  parameters.expectedReplacements,
+                  parameters.formatCode
+                );
+                break;
+                
+              case 'status':
+                result = getStatus();
+                break;
+                
+              default:
+                throw new Error(`Unknown function: ${name}`);
+            }
+            
+            console.error(`Function ${name} executed successfully with result:`, JSON.stringify(result, null, 2));
+            
+            return {
+              jsonrpc: "2.0",
+              id: message.id,
+              result
+            };
+          } catch (error) {
+            console.error(`Error executing function ${name}:`, error);
+            
+            return {
+              jsonrpc: "2.0",
+              id: message.id,
+              error: {
+                code: -32000,
+                message: error.message || "Unknown error"
+              }
+            };
+          }
+        }
+      }
+      
+      // Handle any other message types
+      console.error("Unhandled message type:", message);
+      
+      return {
+        jsonrpc: "2.0",
+        id: message.id || null,
+        error: {
+          code: -32601,
+          message: "Method not supported"
+        }
+      };
+    } catch (error) {
+      console.error("Error handling message:", error);
+      
+      return {
+        jsonrpc: "2.0",
+        id: message.id || null,
+        error: {
+          code: -32603,
+          message: "Internal error"
+        }
+      };
     }
-    
-    console.error('MCP result:', result);
-    return result;
-  } catch (error) {
-    console.error('Error in MCP handler:', error);
-    throw error;
-  }
-}
-
-// Export MCP handler and individual functions
-module.exports = mcp;
-module.exports.readFile = readFile;
-module.exports.writeFile = writeFile;
-module.exports.editCode = editCode;
-module.exports.getStatus = getStatus;
+  });
+  
+  // Set up shutdown handler
+  options.onShutdown(() => {
+    console.error("MCP Server shutting down");
+  });
+  
+  console.error("MCP Server initialization complete");
+  
+  // Export functions for testing
+  return {
+    readFile,
+    writeFile,
+    editCode,
+    getStatus
+  };
+};
