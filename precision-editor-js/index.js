@@ -465,7 +465,7 @@ async function handler(req, res) {
 
 // If run directly (not as MCP server)
 if (require.main === module) {
-  const PORT = process.env.PORT || 3000;
+  const PORT = process.env.PORT || 3001;
   
   // Start the server
   app.listen(PORT, () => {
